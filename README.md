@@ -1,5 +1,5 @@
 ## Hi there 👋
-
+A web app to help users find and navigate MiWay bus routes.
 <!--
 **miwaydrift/miwaydrift** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 

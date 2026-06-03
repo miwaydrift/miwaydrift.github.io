@@ -52,6 +52,423 @@ textarea,input{font-family:inherit}
   });
   firebase.analytics();
 </script>
+<!-- ▼ START: MIWAY FEEDBACK WIDGET ▼ -->
+<style>
+/* ── Widget styles ── */
+#fw-btn {
+  position: fixed; bottom: 24px; right: 20px; z-index: 8000;
+  display: flex; align-items: center; gap: 8px;
+  background: #1a1714; border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 50px; padding: 10px 16px 10px 12px;
+  cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  transition: all 0.2s; color: #fff; font-family: inherit;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
+  -webkit-tap-highlight-color: transparent;
+}
+#fw-btn:hover { background: #2d2a26; border-color: rgba(255,255,255,0.2); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+#fw-btn:active { transform: scale(0.97); }
+#fw-btn .fw-heart { font-size: 18px; line-height: 1; transition: transform 0.15s; }
+#fw-btn:hover .fw-heart { transform: scale(1.15); }
+#fw-btn .fw-count { color: #f59e0b; font-size: 13px; font-weight: 800; min-width: 12px; }
+#fw-btn .fw-sep { color: rgba(255,255,255,0.2); font-size: 16px; }
+#fw-btn .fw-label { color: rgba(255,255,255,0.75); font-size: 12px; }
+
+/* Liked state */
+#fw-btn.fw-liked .fw-heart { filter: drop-shadow(0 0 4px #f59e0b); }
+#fw-btn.fw-liked { border-color: rgba(245,158,11,0.35); }
+
+/* Pop animation */
+@keyframes fw-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.fw-pop { animation: fw-pop 0.35s cubic-bezier(0.36,0.07,0.19,0.97); }
+
+/* Overlay backdrop */
+#fw-overlay {
+  position: fixed; inset: 0; z-index: 8001;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 0 80px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+#fw-overlay.fw-open { opacity: 1; pointer-events: all; }
+
+/* Modal card */
+#fw-card {
+  background: #1e1c19;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 22px 20px 20px;
+  width: calc(100% - 32px); max-width: 380px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  transform: translateY(20px) scale(0.97);
+  transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+#fw-overlay.fw-open #fw-card { transform: translateY(0) scale(1); }
+
+.fw-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.fw-card-title {
+  font-size: 16px; font-weight: 800; color: #fff;
+  letter-spacing: -0.3px;
+}
+#fw-close {
+  background: rgba(255,255,255,0.08); border: none;
+  border-radius: 50%; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: rgba(255,255,255,0.5); font-size: 16px;
+  transition: all 0.15s;
+}
+#fw-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+/* Like row inside card */
+.fw-like-row {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.fw-like-row-text { flex: 1; }
+.fw-like-row-text .fw-like-title { font-size: 13px; font-weight: 700; color: #e5e1db; }
+.fw-like-row-text .fw-like-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+#fw-like-btn-modal {
+  background: rgba(245,158,11,0.1);
+  border: 1.5px solid rgba(245,158,11,0.25);
+  border-radius: 10px; padding: 8px 14px;
+  cursor: pointer; font-weight: 800; font-size: 13px;
+  color: #f59e0b; display: flex; align-items: center; gap: 6px;
+  transition: all 0.15s; white-space: nowrap;
+}
+#fw-like-btn-modal:hover { background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.4); }
+#fw-like-btn-modal.fw-liked { background: rgba(245,158,11,0.2); border-color: #f59e0b; }
+
+/* Feedback form */
+.fw-form-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+#fw-textarea {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 12px; padding: 12px 14px;
+  color: #e5e1db; font-size: 14px; font-weight: 500;
+  font-family: inherit; resize: none; outline: none;
+  line-height: 1.5; min-height: 90px;
+  transition: border-color 0.15s;
+}
+#fw-textarea:focus { border-color: rgba(245,158,11,0.4); }
+#fw-textarea::placeholder { color: rgba(255,255,255,0.2); }
+
+#fw-send {
+  margin-top: 10px; width: 100%; padding: 13px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border: none; border-radius: 12px;
+  color: #1a1714; font-size: 14px; font-weight: 800;
+  cursor: pointer; letter-spacing: 0.2px;
+  transition: all 0.15s; box-shadow: 0 4px 14px rgba(245,158,11,0.25);
+}
+#fw-send:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(245,158,11,0.35); }
+#fw-send:active { transform: scale(0.98); }
+#fw-send:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
+
+/* Success state */
+#fw-success {
+  display: none; text-align: center;
+  padding: 16px 0 6px;
+}
+#fw-success .fw-success-icon { font-size: 36px; margin-bottom: 10px; }
+#fw-success .fw-success-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+#fw-success .fw-success-sub { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+
+/* Character count */
+.fw-char-count { font-size: 11px; color: rgba(255,255,255,0.25); text-align: right; margin-top: 4px; }
+.fw-char-count.fw-over { color: #ef4444; }
+
+/* Site badge */
+.fw-site-badge {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  background: rgba(37,99,235,0.15); color: #60a5fa;
+  border: 1px solid rgba(37,99,235,0.2);
+  border-radius: 6px; padding: 2px 7px; margin-bottom: 14px;
+  letter-spacing: 0.3px;
+}
+</style>
+
+<!-- Floating button -->
+<div id="fw-btn" title="Like & Feedback">
+  <span class="fw-heart">🤍</span>
+  <span class="fw-count" id="fw-count-badge">—</span>
+  <span class="fw-sep">|</span>
+  <span class="fw-label">Feedback</span>
+</div>
+
+<!-- Modal overlay -->
+<div id="fw-overlay">
+  <div id="fw-card">
+    <div class="fw-card-header">
+      <span class="fw-card-title">Rate this tool</span>
+      <button id="fw-close">✕</button>
+    </div>
+
+    <div id="fw-main-content">
+      <!-- Site badge (auto-filled by JS) -->
+      <div class="fw-site-badge" id="fw-site-badge"></div>
+
+      <!-- Like row -->
+      <div class="fw-like-row">
+        <div class="fw-like-row-text">
+          <div class="fw-like-title">Find this useful?</div>
+          <div class="fw-like-sub" id="fw-like-sub-text">Be the first to like this</div>
+        </div>
+        <button id="fw-like-btn-modal">🤍 <span id="fw-like-label">Like</span></button>
+      </div>
+
+      <!-- Feedback text -->
+      <label class="fw-form-label" for="fw-textarea">Suggestions or feedback</label>
+      <textarea id="fw-textarea" placeholder="What would make this better? Found a bug? Missing a route?&#10;(Anonymous — only the developer sees this)" maxlength="500"></textarea>
+      <div class="fw-char-count"><span id="fw-char-num">0</span> / 500</div>
+
+      <button id="fw-send">Send Feedback</button>
+    </div>
+
+    <div id="fw-success">
+      <div class="fw-success-icon">🎉</div>
+      <div class="fw-success-title">Thanks for the feedback!</div>
+      <div class="fw-success-sub">Your message goes straight to the developer.<br>Improvements are on the way.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── CONFIG ── Change SITE_ID per file:
+  //   Route Guide   → 'route-guide'
+  //   CP Sign-Up    → 'cp-signup'
+  //   Malton        → 'malton'
+  var SITE_ID = 'route-guide'; // ← CHANGE THIS IN EACH FILE
+
+  var SITE_LABELS = {
+    'route-guide': 'MiWay Route Guide',
+    'cp-signup':   'CP Sign-Up 2026',
+    'malton':      'Malton Sign-Up 2026'
+  };
+
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyA9obvEGVdRktxX6EgXZ8FPamF9NPz4JRE",
+    authDomain: "miwaydrift.firebaseapp.com",
+    projectId: "miwaydrift",
+    storageBucket: "miwaydrift.firebasestorage.app",
+    messagingSenderId: "740977441308",
+    appId: "1:740977441308:web:c126022a2d1b305bae7dd9",
+    measurementId: "G-2LHC7R9BCR"
+  };
+
+  // ── State ──
+  var liked = false;
+  var likeCount = 0;
+  var db = null;
+  var MAX_CHARS = 500;
+
+  // LocalStorage key to remember if this device already liked
+  var LS_KEY = 'fw_liked_' + SITE_ID;
+
+  // ── Init Firebase (handles already-initialized case) ──
+  try {
+    var apps = firebase.apps;
+    var app = apps.length ? apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore(app);
+    try { firebase.analytics(app); } catch(e) {}
+  } catch(e) {
+    console.warn('FW: Firebase init error', e);
+  }
+
+  // ── Elements ──
+  var btn       = document.getElementById('fw-btn');
+  var overlay   = document.getElementById('fw-overlay');
+  var closeBtn  = document.getElementById('fw-close');
+  var likeModal = document.getElementById('fw-like-btn-modal');
+  var likeLabel = document.getElementById('fw-like-label');
+  var likeSub   = document.getElementById('fw-like-sub-text');
+  var countBadge= document.getElementById('fw-count-badge');
+  var textarea  = document.getElementById('fw-textarea');
+  var sendBtn   = document.getElementById('fw-send');
+  var charNum   = document.getElementById('fw-char-num');
+  var success   = document.getElementById('fw-success');
+  var mainCont  = document.getElementById('fw-main-content');
+  var siteBadge = document.getElementById('fw-site-badge');
+  var heartEl   = btn.querySelector('.fw-heart');
+
+  // ── Set site badge ──
+  siteBadge.textContent = SITE_LABELS[SITE_ID] || SITE_ID;
+
+  // ── Load like count from Firestore ──
+  function loadLikes() {
+    if (!db) { countBadge.textContent = '0'; return; }
+    db.collection('feedback').doc(SITE_ID).get().then(function(doc) {
+      if (doc.exists) {
+        likeCount = doc.data().likes || 0;
+      } else {
+        likeCount = 0;
+      }
+      updateLikeUI(false);
+    }).catch(function() {
+      likeCount = 0;
+      updateLikeUI(false);
+    });
+  }
+
+  // ── Check if already liked on this device ──
+  try {
+    if (localStorage.getItem(LS_KEY) === '1') {
+      liked = true;
+    }
+  } catch(e) {}
+
+  // ── Update all like UI ──
+  function updateLikeUI(animate) {
+    countBadge.textContent = likeCount;
+    heartEl.textContent = liked ? '❤️' : '🤍';
+    if (liked) {
+      btn.classList.add('fw-liked');
+      likeModal.classList.add('fw-liked');
+      likeLabel.textContent = 'Liked!';
+    } else {
+      btn.classList.remove('fw-liked');
+      likeModal.classList.remove('fw-liked');
+      likeLabel.textContent = 'Like';
+    }
+    // Update sub-text
+    if (likeCount === 0) {
+      likeSub.textContent = 'Be the first to like this';
+    } else if (likeCount === 1) {
+      likeSub.textContent = liked ? 'You liked this' : '1 person found this useful';
+    } else {
+      likeSub.textContent = likeCount + ' people found this useful';
+    }
+    if (animate) {
+      heartEl.classList.remove('fw-pop');
+      void heartEl.offsetWidth; // reflow
+      heartEl.classList.add('fw-pop');
+      setTimeout(function() { heartEl.classList.remove('fw-pop'); }, 400);
+    }
+  }
+
+  // ── Toggle like ──
+  function toggleLike() {
+    if (!db) return;
+    var wasLiked = liked;
+    liked = !liked;
+    likeCount = wasLiked ? Math.max(0, likeCount - 1) : likeCount + 1;
+    updateLikeUI(true);
+    try { localStorage.setItem(LS_KEY, liked ? '1' : '0'); } catch(e) {}
+
+    // Write to Firestore with increment/decrement
+    var increment = firebase.firestore.FieldValue.increment(wasLiked ? -1 : 1);
+    db.collection('feedback').doc(SITE_ID).set({
+      likes: increment,
+      site: SITE_ID,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(function(e) {
+      // Revert on failure
+      liked = wasLiked;
+      likeCount = wasLiked ? likeCount + 1 : Math.max(0, likeCount - 1);
+      updateLikeUI(false);
+      console.warn('FW: like save failed', e);
+    });
+  }
+
+  // ── Send feedback ──
+  function sendFeedback() {
+    var text = textarea.value.trim();
+    if (!text) { textarea.focus(); return; }
+    if (text.length > MAX_CHARS) return;
+    if (!db) { showSuccess(); return; }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+
+    db.collection('feedback').doc(SITE_ID).collection('messages').add({
+      text: text,
+      site: SITE_ID,
+      siteName: SITE_LABELS[SITE_ID] || SITE_ID,
+      liked: liked,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      ua: navigator.userAgent.slice(0, 100)
+    }).then(function() {
+      showSuccess();
+    }).catch(function(e) {
+      console.warn('FW: feedback save failed', e);
+      // Still show success to user — don't show errors
+      showSuccess();
+    });
+  }
+
+  function showSuccess() {
+    mainCont.style.display = 'none';
+    success.style.display = 'block';
+    setTimeout(function() { closeModal(); }, 3500);
+  }
+
+  // ── Open / close modal ──
+  function openModal() {
+    // Reset form state
+    mainCont.style.display = 'block';
+    success.style.display = 'none';
+    textarea.value = '';
+    charNum.textContent = '0';
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send Feedback';
+    overlay.classList.add('fw-open');
+    setTimeout(function() { textarea.focus(); }, 350);
+  }
+  function closeModal() {
+    overlay.classList.remove('fw-open');
+  }
+
+  // ── Event listeners ──
+  btn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeModal();
+  });
+  likeModal.addEventListener('click', toggleLike);
+  btn.querySelector('.fw-heart').addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleLike();
+  });
+  textarea.addEventListener('input', function() {
+    var len = textarea.value.length;
+    charNum.textContent = len;
+    charNum.parentElement.classList.toggle('fw-over', len > MAX_CHARS);
+    sendBtn.disabled = len > MAX_CHARS;
+  });
+  sendBtn.addEventListener('click', sendFeedback);
+
+  // ── Firestore security note ──
+  // Add this rule to your Firestore rules so anyone can read/write the
+  // feedback collection (likes are public, messages are write-only):
+  //
+  // match /feedback/{siteId} {
+  //   allow read, write: if true;  // public like counts
+  // }
+  // match /feedback/{siteId}/messages/{msg} {
+  //   allow create: if true;       // anyone can submit
+  //   allow read: if false;        // only you see them in console
+  // }
+
+  // ── Init ──
+  loadLikes();
+  updateLikeUI(false);
+})();
+</script>
+
+<!-- ▲ END: MIWAY FEEDBACK WIDGET ▲ -->
 <body>
 <div id="app"></div>
 <script>
